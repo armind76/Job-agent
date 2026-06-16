@@ -1,0 +1,16 @@
+{
+  "id": "abc123def456789a",
+  "url": "https://www.builtinnyc.com/job/engineer/senior-cpp-systems-engineer/12345",
+  "title": "Senior C++ Systems Engineer",
+  "company": "Jane Street",
+  "location": "New York, NY",
+  "description": "We are looking for a Senior C++ Systems Engineer to join our trading systems team in New York. The ideal candidate will have strong experience with C++17/20, low-latency systems programming, and lock-free data structures.\n\nResponsibilities:\n- Design and implement high-performance trading infrastructure\n- Optimize critical path code for minimal latency\n- Work with FPGA teams on co-design of trading systems\n- Develop and maintain order management systems\n\nRequirements:\n- 5+ years of C++ development experience\n- Deep understanding of memory management, STL, and template metaprogramming\n- Experience with lock-free programming and NUMA architectures\n- Strong knowledge of Linux kernel internals\n- Experience with TCP/IP networking at scale\n- Excellent problem-solving skills",
+  "source": "builtin",
+  "ats_type": "greenhouse",
+  "apply_url": "https://boards.greenhouse.io/janestreet/jobs/12345",
+  "priority_tier": 1,
+  "priority_score": 0.97,
+  "priority_reason": "Requires C++17/20, lock-free programming, low-latency systems — perfect tier 1 match.",
+  "scraped_at": "2026-06-15T10:00:00",
+  "status": "pending"
+}

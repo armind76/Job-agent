@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="{{ css_path }}">
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────── -->
+<header>
+  <h1>{{ resume.name }}</h1>
+  <div class="contact">
+    {%- set parts = [] %}
+    {%- if resume.email    %}{% set _ = parts.append(resume.email)    %}{% endif %}
+    {%- if resume.phone    %}{% set _ = parts.append(resume.phone)    %}{% endif %}
+    {%- if resume.location %}{% set _ = parts.append(resume.location) %}{% endif %}
+    {%- if resume.linkedin %}{% set _ = parts.append('<a href="' ~ resume.linkedin ~ '">LinkedIn</a>') %}{% endif %}
+    {%- if resume.github   %}{% set _ = parts.append('<a href="' ~ resume.github   ~ '">GitHub</a>')   %}{% endif %}
+    {%- if resume.portfolio%}{% set _ = parts.append('<a href="' ~ resume.portfolio ~ '">Portfolio</a>') %}{% endif %}
+    {{ parts | join(' &nbsp;·&nbsp; ') }}
+  </div>
+</header>
+
+<!-- ── SUMMARY ────────────────────────────────────────── -->
+{%- if resume.summary %}
+<section>
+  <h2>Summary</h2>
+  <p class="summary">{{ resume.summary }}</p>
+</section>
+{%- endif %}
+
+<!-- ── SKILLS ─────────────────────────────────────────── -->
+{%- if skills %}
+<section>
+  <h2>Skills</h2>
+  <p class="skills-list">{{ skills | join(' &nbsp;·&nbsp; ') }}</p>
+</section>
+{%- endif %}
+
+<!-- ── EXPERIENCE ─────────────────────────────────────── -->
+{%- if resume.experience %}
+<section>
+  <h2>Experience</h2>
+  {%- for job in resume.experience %}
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">{{ job.title }}</span>
+      <span class="item-dates">{{ job.dates }}</span>
+    </div>
+    <div class="item-sub">{{ job.company }}{% if job.location %} &nbsp;·&nbsp; {{ job.location }}{% endif %}</div>
+    {%- if job.bullets %}
+    <ul>
+      {%- for b in job.bullets %}<li>{{ b }}</li>{%- endfor %}
+    </ul>
+    {%- endif %}
+  </div>
+  {%- endfor %}
+</section>
+{%- endif %}
+
+<!-- ── PROJECTS ───────────────────────────────────────── -->
+{%- if projects %}
+<section>
+  <h2>Projects</h2>
+  {%- for proj in projects %}
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">
+        {%- if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{%- else %}{{ proj.name }}{%- endif %}
+      </span>
+      {%- if proj.technologies %}
+      <span class="item-tech">{{ proj.technologies | join(', ') }}</span>
+      {%- endif %}
+    </div>
+    {%- if proj.bullets %}
+    <ul>
+      {%- for b in proj.bullets %}<li>{{ b }}</li>{%- endfor %}
+    </ul>
+    {%- endif %}
+  </div>
+  {%- endfor %}
+</section>
+{%- endif %}
+
+<!-- ── EDUCATION ──────────────────────────────────────── -->
+{%- if resume.education %}
+<section>
+  <h2>Education</h2>
+  {%- for edu in resume.education %}
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">{{ edu.degree }}</span>
+      <span class="item-dates">{{ edu.dates }}</span>
+    </div>
+    <div class="item-sub">{{ edu.institution }}</div>
+    {%- if edu.details %}
+    <ul>
+      {%- for d in edu.details %}<li>{{ d }}</li>{%- endfor %}
+    </ul>
+    {%- endif %}
+  </div>
+  {%- endfor %}
+</section>
+{%- endif %}
+
+</body>
+</html>
