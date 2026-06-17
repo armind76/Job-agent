@@ -96,21 +96,55 @@ class BuiltInNYCScraper(BaseScraper):
             await asyncio.sleep(1)
 
             title = await self._text(page, 'h1, [class*="title"]')
-            company = await self._text(page, '[class*="company"], [class*="employer"]')
+
+            # Company: try progressively wider selectors
+            company = (
+                await self._text(page, '[class*="company-name"]')
+                or await self._text(page, '[data-testid*="company"]')
+                or await self._text(page, '[class*="company"] a')
+                or await self._text(page, '[class*="company"]')
+                or await self._text(page, '[class*="employer"]')
+                or await self._attr(page, 'meta[property="og:site_name"]', "content")
+            )
+
             location = await self._text(page, '[class*="location"], [class*="Location"]')
-            description = await self._text(page, '[class*="description"], [class*="Description"], .job-description, main')
+            description = await self._text(
+                page,
+                '[class*="description"], [class*="Description"], .job-description, main',
+            )
 
             if not title:
                 return None
 
-            # Look for apply link
-            apply_link = await page.query_selector('a[href*="greenhouse"], a[href*="lever"], a[href*="apply"]')
+            # Apply URL: scan for known ATS links first, then any external apply href
             apply_url = None
             ats_type = None
-            if apply_link:
-                apply_url = await apply_link.get_attribute("href")
-                if apply_url:
-                    ats_type = self._detect_ats(apply_url)
+
+            apply_selectors = [
+                'a[href*="greenhouse.io"]',
+                'a[href*="lever.co"]',
+                'a[href*="myworkdayjobs"]',
+                'a[href*="icims.com"]',
+                'a[href*="taleo.net"]',
+                'a[href*="smartrecruiters"]',
+                'a[href*="jobvite"]',
+                'a[href*="ashbyhq"]',
+                'a[href*="rippling"]',
+                # Generic "Apply" anchors — captures anything not caught above
+                'a:has-text("Apply Now")',
+                'a:has-text("Apply for Job")',
+                'a:has-text("Apply for this job")',
+                'a[class*="apply"]',
+                '[data-apply-url]',
+            ]
+            for sel in apply_selectors:
+                el = await page.query_selector(sel)
+                if el:
+                    href = await el.get_attribute("href") or await el.get_attribute("data-apply-url")
+                    if href and href.startswith("http") and "builtinnyc.com" not in href:
+                        apply_url = href
+                        ats_type = self._detect_ats(apply_url)
+                        break
 
             return Job(
                 url=url,
@@ -132,6 +166,17 @@ class BuiltInNYCScraper(BaseScraper):
             el = await page.query_selector(selector)
             if el:
                 return (await el.inner_text()).strip()
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    async def _attr(page, selector: str, attr: str) -> str:
+        try:
+            el = await page.query_selector(selector)
+            if el:
+                val = await el.get_attribute(attr)
+                return (val or "").strip()
         except Exception:
             pass
         return ""

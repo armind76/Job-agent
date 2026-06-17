@@ -170,11 +170,8 @@ NYC_LOCATION_PATTERNS = [
 # Hard exclusion keywords (skip these jobs)
 # ──────────────────────────────────────────────
 EXCLUSION_KEYWORDS = [
-    "javascript only",
     "frontend only",
-    "react developer",
     "angular developer",
-    "vue developer",
     "ios developer",
     "android developer",
     "mobile developer",
@@ -209,25 +206,32 @@ EXCLUSION_KEYWORDS = [
 # ──────────────────────────────────────────────
 SEARCH_QUERIES = {
     "linkedin": [
-        "C++ software engineer New York",
-        "systems software engineer NYC",
-        "low latency C++ engineer New York",
-        "HFT software engineer New York",
-        "graphics engineer New York",
+        "new grad software engineer New York",
+        "new graduate C++ engineer NYC",
+        "entry level systems engineer New York",
+        "junior C++ engineer New York",
+        "entry level graphics engineer New York",
+        "new grad low latency engineer NYC",
+        "entry level HFT software engineer New York",
     ],
     "indeed": [
-        "C++ engineer New York",
-        "systems programmer NYC",
-        "low latency engineer New York",
+        "new grad software engineer New York",
+        "entry level C++ engineer New York",
+        "junior systems engineer New York",
+        "entry level graphics engineer New York",
+        "new graduate engineer New York",
     ],
     "glassdoor": [
-        "C++ engineer New York",
-        "systems software engineer NYC",
+        "new grad software engineer NYC",
+        "entry level C++ engineer New York",
+        "junior engineer systems New York",
+        "new graduate graphics engineer NYC",
     ],
     "builtin": [
-        "c++",
-        "systems engineer",
-        "graphics engineer",
+        "new grad",
+        "entry level engineer",
+        "junior engineer",
+        "new graduate software engineer",
     ],
 }
 

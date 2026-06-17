@@ -43,10 +43,10 @@ def render_job_panel(
     tier_color = TIER_COLORS.get(job.priority_tier or 4, "white")
     tier_label = TIER_LABELS.get(job.priority_tier or 4, "Unknown")
 
-    # Header
+    # Header — title is a clickable link to the listing
     title_text = Text()
     title_text.append(f"[{index}/{total}] ", style="dim")
-    title_text.append(job.title, style=f"bold {tier_color}")
+    title_text.append(job.title, style=f"bold {tier_color} link {job.url}" if job.url else f"bold {tier_color}")
     title_text.append(f"  @  ", style="dim")
     title_text.append(job.company, style="bold cyan")
 
@@ -71,7 +71,10 @@ def render_job_panel(
         lines.append(Text.from_markup(f"[dim]Resume:[/dim] [blue]{resume_path.name}[/blue]"))
 
     if job.url:
-        lines.append(Text.from_markup(f"[dim]URL:[/dim] [link={job.url}]{job.url[:80]}[/link]"))
+        lines.append(Text.from_markup(f"[dim]Listing:[/dim] [link={job.url}]{job.url[:80]}[/link]"))
+
+    if job.apply_url and job.apply_url != job.url:
+        lines.append(Text.from_markup(f"[dim]Apply: [/dim] [green][link={job.apply_url}]{job.apply_url[:80]}[/link][/green]"))
 
     if cover_letter:
         cl_preview = cover_letter[:200].replace("\n", " ") + ("…" if len(cover_letter) > 200 else "")

@@ -165,10 +165,20 @@ def main() -> None:
         console.print(f"\n[bold]Scraped {total_new} new jobs total.[/bold]")
 
     # ── Phase 2: Review / Apply ───────────────────────────────────
-    pending = store.get_pending_jobs(
+    from job_agent.application.quota import select_with_graphics_quota, quota_summary
+
+    # Fetch a generous pool so the quota selector has enough candidates.
+    raw_pending = store.get_pending_jobs(
         tier_filter=args.tier,
-        limit=args.limit * 2,
+        limit=500,
     )
+
+    # Apply 10% graphics quota only when not explicitly filtering to a single tier.
+    if args.tier is None:
+        pending = select_with_graphics_quota(raw_pending, limit=args.limit * 2)
+        console.print(f"[dim]Graphics quota applied: {quota_summary(pending)}[/dim]")
+    else:
+        pending = raw_pending[: args.limit * 2]
 
     if not pending:
         console.print("[yellow]No pending jobs to review.[/yellow]")

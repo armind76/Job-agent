@@ -121,6 +121,7 @@ class Applicator:
 
         apply_url = job.apply_url or job.url
         ats_type = job.ats_type
+        print(f"[applicator] {job.title} | ats={ats_type!r} | url={apply_url}")
 
         success = False
         error_msg = None

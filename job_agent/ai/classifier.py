@@ -23,14 +23,25 @@ class ClassificationResult:
     skip: bool = False   # True if job should be excluded
 
 
-_SYSTEM = """You are a job classification assistant for an experienced C++ systems software engineer in New York City.
-Your task: classify a job posting into one of 4 priority tiers based on relevance.
+_SYSTEM = """You are a job classification assistant for a new graduate C++ / systems software engineer in New York City.
+The candidate has strong technical fundamentals but limited industry experience — entry-level, junior, and new-grad
+positions are explicitly desirable and should NOT be penalised for low seniority requirements.
+Your task: classify a job posting into one of 4 priority tiers based on technical relevance.
 
 Tier definitions:
 1 = C++ systems / low-latency / HFT / trading systems / kernel (HIGHEST priority)
 2 = Low-level infrastructure / embedded / compilers / distributed systems / Rust
 3 = Graphics / GPU / simulation / HPC / rendering
 4 = General SWE / backend / Go / Java / Python (LOWEST priority, still relevant)
+
+Important rules:
+- Rank by technical fit, not seniority. A new-grad C++ HFT role is still Tier 1.
+- Set skip=true if the role explicitly requires 3 or more years of professional experience AND does not
+  mention "new grad", "entry level", "junior", or "recent graduate" anywhere in the posting.
+- Set skip=true for roles that are genuinely irrelevant (QA, frontend-only, mobile, product manager, etc.)
+  or have hard citizenship/clearance requirements.
+- Do NOT skip just because the title says "Senior" — confirm by checking the experience requirements in
+  the description before deciding.
 
 Return a JSON object with exactly these keys:
 {

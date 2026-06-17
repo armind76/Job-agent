@@ -1,5 +1,6 @@
 """Greenhouse ATS form submitter."""
 import asyncio
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +10,7 @@ from config.settings import settings
 
 
 class GreenhouseSubmitter:
-    """Fills and submits Greenhouse job application forms."""
+    """Fills and submits Greenhouse job application forms, handling multi-page flows."""
 
     async def apply(
         self,
@@ -19,33 +20,29 @@ class GreenhouseSubmitter:
         cover_letter: str,
         dry_run: bool = False,
     ) -> tuple[bool, Optional[str]]:
-        """
-        Navigate to a Greenhouse apply URL and submit the application.
-        Returns (success, error_message).
-        """
         try:
             await page.goto(apply_url, wait_until="domcontentloaded", timeout=30000)
             await asyncio.sleep(2)
 
-            # Fill standard fields
+            # ── Page 1: fill all known standard fields ──────────────────────
             await self._fill_field(page, 'input[id*="first_name"], input[name*="first_name"]',
                                    settings.user_full_name.split()[0])
             await self._fill_field(page, 'input[id*="last_name"], input[name*="last_name"]',
                                    settings.user_full_name.split()[-1])
             await self._fill_field(page, 'input[id*="email"], input[type="email"]', settings.user_email)
             await self._fill_field(page, 'input[id*="phone"], input[type="tel"]', settings.user_phone)
-
-            # LinkedIn URL
             await self._fill_field(page, 'input[id*="linkedin"], input[placeholder*="LinkedIn"]',
                                    settings.user_linkedin_url)
 
             # Resume upload
-            resume_input = await page.query_selector('input[type="file"][id*="resume"], input[type="file"][name*="resume"]')
+            resume_input = await page.query_selector(
+                'input[type="file"][id*="resume"], input[type="file"][name*="resume"]'
+            )
             if resume_input:
                 await resume_input.set_input_files(str(resume_path))
                 await asyncio.sleep(1)
 
-            # Cover letter — try text area first, then file upload
+            # Cover letter — textarea or file upload
             cl_textarea = await page.query_selector(
                 'textarea[id*="cover_letter"], textarea[name*="cover_letter"], '
                 'textarea[placeholder*="cover letter"]'
@@ -53,52 +50,120 @@ class GreenhouseSubmitter:
             if cl_textarea:
                 await cl_textarea.fill(cover_letter)
             else:
-                cl_file_input = await page.query_selector('input[type="file"][id*="cover_letter"]')
-                if cl_file_input:
-                    # Save cover letter to temp file
-                    import tempfile
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                cl_file = await page.query_selector('input[type="file"][id*="cover_letter"]')
+                if cl_file:
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                         f.write(cover_letter)
                         tmp_path = f.name
-                    await cl_file_input.set_input_files(tmp_path)
+                    await cl_file.set_input_files(tmp_path)
 
-            # Fill any remaining required fields that are empty
             await self._fill_optional_fields(page)
 
-            if dry_run:
-                fields = await self._log_form_fields(page)
-                print("[greenhouse][dry-run] Form fields:")
-                for name, value in fields.items():
-                    print(f"  {name}: {value[:80] if value else '(empty)'}")
-                return True, None
+            # ── Multi-page loop ──────────────────────────────────────────────
+            for page_num in range(1, 11):
+                if dry_run:
+                    fields = await self._log_form_fields(page)
+                    print(f"[greenhouse][dry-run] Page {page_num} fields:")
+                    for name, value in fields.items():
+                        print(f"  {name}: {value[:80] if value else '(empty)'}")
 
-            # Submit
-            submit_btn = await page.query_selector(
-                'button[type="submit"], input[type="submit"], button[id*="submit"]'
-            )
-            if submit_btn:
-                await submit_btn.click()
+                next_btn = await self._find_next_button(page)
+                if next_btn:
+                    print(f"[greenhouse] Page {page_num} → Next")
+                    if dry_run:
+                        print(f"[greenhouse][dry-run] Would click Next on page {page_num}")
+                        return True, None
+                    await next_btn.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.3)
+                    try:
+                        await next_btn.click(timeout=8000)
+                    except Exception:
+                        await page.evaluate("el => el.click()", next_btn)
+                    await asyncio.sleep(2)
+                    # Fill any new fields that appeared on this page
+                    await self._fill_optional_fields(page)
+                    continue
+
+                # No Next — try Submit
+                if dry_run:
+                    return True, None
+
+                clicked, click_err = await self._click_submit(page)
+                if not clicked:
+                    return False, click_err
                 await asyncio.sleep(3)
 
-                # Check for success
                 success_el = await page.query_selector(
                     '[class*="success"], [class*="confirmation"], h1:has-text("Thank you")'
                 )
                 if success_el:
                     return True, None
-
-                # Check for errors
                 error_el = await page.query_selector('[class*="error"], [role="alert"]')
                 if error_el:
-                    error_text = await error_el.inner_text()
-                    return False, error_text.strip()
+                    return False, (await error_el.inner_text()).strip()
+                return True, None
 
-                return True, None  # Assume success if no explicit confirmation
-            else:
-                return False, "Could not find submit button"
+            return False, "Exceeded maximum page count (10)"
 
         except Exception as e:
             return False, str(e)
+
+    # ── Helpers ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _find_next_button(page: Page):
+        """Return a Next/Continue button that advances to the next page (not Submit)."""
+        selectors = [
+            'button:has-text("Next")',
+            'button:has-text("Continue")',
+            'button:has-text("Next Step")',
+            'button:has-text("Next Page")',
+            'button:has-text("Proceed")',
+            'a:has-text("Next")',
+            'a:has-text("Continue")',
+            '[data-testid*="next-btn"]',
+            '[aria-label="Next step"]',
+        ]
+        for selector in selectors:
+            try:
+                el = await page.query_selector(selector)
+                if el:
+                    text = (await el.inner_text()).lower().strip()
+                    if not any(w in text for w in ["submit", "send application", "apply"]):
+                        return el
+            except Exception:
+                continue
+        return None
+
+    @staticmethod
+    async def _click_submit(page: Page) -> tuple[bool, str | None]:
+        """Find the submit button, scroll it into view, click it (JS fallback)."""
+        selectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'button[id*="submit"]',
+            'button:has-text("Submit Application")',
+            'button:has-text("Submit application")',
+            'button:has-text("Submit")',
+            'button:has-text("Apply Now")',
+            'button:has-text("Send Application")',
+            '[data-qa="btn-submit"]',
+            '[data-testid*="submit"]',
+        ]
+        for selector in selectors:
+            try:
+                el = await page.query_selector(selector)
+                if el:
+                    await el.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.4)
+                    try:
+                        await el.click(timeout=8000)
+                    except Exception:
+                        await page.evaluate("el => el.click()", el)
+                    return True, None
+            except Exception:
+                continue
+        return False, "Could not find submit button"
 
     @staticmethod
     async def _fill_field(page: Page, selector: str, value: str) -> None:
@@ -115,7 +180,6 @@ class GreenhouseSubmitter:
 
     @staticmethod
     async def _fill_optional_fields(page: Page) -> None:
-        """Fill location, website, and other common optional fields."""
         optional_map = {
             'input[id*="location"], input[placeholder*="Location"]': settings.user_location,
             'input[id*="website"], input[placeholder*="Website"], input[id*="portfolio"]': settings.user_portfolio_url,
@@ -133,10 +197,11 @@ class GreenhouseSubmitter:
 
     @staticmethod
     async def _log_form_fields(page: Page) -> dict:
-        """Extract all form field names and current values for dry-run logging."""
         fields = {}
         try:
-            inputs = await page.query_selector_all('input:not([type="hidden"]):not([type="submit"]), textarea, select')
+            inputs = await page.query_selector_all(
+                'input:not([type="hidden"]):not([type="submit"]), textarea, select'
+            )
             for inp in inputs:
                 name = await inp.get_attribute("name") or await inp.get_attribute("id") or "?"
                 value = await inp.input_value() if await inp.get_attribute("type") != "file" else "(file)"
